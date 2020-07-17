@@ -11,6 +11,8 @@ import {
   NotAuthorizedError,
   OrderStatus,
 } from '@agreejwc/common';
+import { PaymentCreatedPublisher } from '../events/publisher/payment-created-publisher';
+import { natsWrapper } from '../nats-wrapper';
 
 const router = express.Router();
 
@@ -27,6 +29,7 @@ router.post(
 
     const order = await Order.findById(orderId);
 
+    // Error validation
     if (!order) {
       throw new NotFoundError('Order not found');
     }
@@ -37,18 +40,27 @@ router.post(
       throw new BadRequestError('Cannot pay for a cancelled order');
     }
 
+    // Stripe Payments Service
     const charge = await stripe.charges.create({
       amount: order.price * 100,
       currency: 'USD',
       source: token,
     });
+
+    // Tying order and payment together
     const payment = Payment.build({
       orderId: order.id,
       chargeId: charge.id,
     });
     await payment.save();
 
-    res.status(201).send(charge);
+    // Publish Payment:Created event
+    new PaymentCreatedPublisher(natsWrapper.client).publish({
+      orderId: payment.orderId,
+    });
+
+    // Return response
+    res.status(201).send({ paymentId: payment.id });
   }
 );
 
