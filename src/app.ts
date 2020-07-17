@@ -2,6 +2,7 @@ import express from 'express';
 import 'express-async-errors'; // Fix Express async bug
 import { json } from 'body-parser';
 import cookieSession from 'cookie-session'; // Transfer JWT via cookie
+import { createChargeRouter } from './routes/new';
 
 import { errorHandler, NotFoundError, currentUser } from '@agreejwc/common';
 
@@ -21,6 +22,7 @@ app.use(
 app.use(currentUser);
 
 // Routers
+app.use(createChargeRouter);
 
 // Invalid URL handler
 app.all('*', async (req, res) => {
